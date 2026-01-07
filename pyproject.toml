@@ -1,0 +1,29 @@
+[project]
+name = "otpfile"
+version = "0.1.0"
+description = "使用一次性密码本存储重要文件."
+authors = [
+    {name = "songwei", email = "github@songwei.name"},
+]
+dependencies = []
+requires-python = ">=3.14"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.urls]
+homepage = "https://github.com/xdusongwei/otpfile"
+
+[project.optional-dependencies]
+test = [
+    "coverage>=7.13.1",
+    "pytest>=9.0.2",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.pdm]
+distribution = true
+packages = ["otpfile"]
