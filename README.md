@@ -37,7 +37,7 @@ groupID: 对于所有加密过的文件的统一标识
 fileHash: 原文件的签名信息, 用于还原时校验解密数据
 name: 被加密文件的名称, 用于还原时创建文件
 fileCount: 需要创建多少个文件, 至少为2(密文文件+1个密码本文件)
-segCount: 每个段可以承载不超过128KB的密文或者密码本
+segCount: 文件包含的段数量, 每个段可以承载不超过128KB的密文或者密码本
 
 对于每个段:
 +---------------------------+--------+----+--------+-----+--------------+
@@ -46,4 +46,17 @@ segCount: 每个段可以承载不超过128KB的密文或者密码本
 
 signatures: 所有文件中这个位置的段, 其数据的签名汇总, 用于校验所有文件的这一批段数据是否缺失或者异常
 signature: 该段的在此文件的签名, hash(groupID + body + nonce)
+```
+
+
+用法
+---
+
+```python
+from otpfile import OTP
+
+
+o = OTP()
+files = o.encrypt_file('/path/to/secret.data', '/path/to/write/output/folder')
+o.decrypt_file(files, '/path/to/write/recover/folder')
 ```

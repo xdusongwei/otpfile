@@ -7,7 +7,6 @@ import secrets
 import dataclasses
 
 
-
 class OTPError(Exception):
     pass
 
@@ -47,7 +46,17 @@ class OTP:
             output_folder: str,
             file_count: int = 2,
             nonce_size: int = 32,
-    ):
+            check_files: bool = True,
+    ) -> list[str]:
+        """
+        加密指定的文件, 并产生密文文件和密码本文件
+        :param file_path: 被加密的文件路径
+        :param output_folder: 输出结果文件的目录位置
+        :param file_count: 输出文件的数量
+        :param nonce_size: 每个段数据 nonce 的长度
+        :param check_files: 是否在结果文件产生之后尝试解密来检查数据是否正确
+        :return: 一组结果文件的路径
+        """
         if not file_path:
             raise OTPError(f'需要合法文件路径')
         if not os.path.isfile(file_path):
@@ -65,7 +74,7 @@ class OTP:
         file_name_bytes = file_name.encode('utf8')
         if len(file_name_bytes)  < 1 or len(file_name_bytes) > 1024:
             raise OTPError(f'被加密文件名长度超过限制')
-        return cls._encrypt(
+        resp = cls._encrypt(
             file_path=file_path,
             file_name=file_name,
             file_size=file_size,
@@ -73,6 +82,9 @@ class OTP:
             file_count=file_count,
             nonce_size=nonce_size,
         )
+        if check_files:
+            cls.decrypt_file(resp, None)
+        return resp
 
     @classmethod
     def _encrypt(
@@ -93,6 +105,7 @@ class OTP:
             file_count=file_count,
             segment_count=segment_count,
         )
+        encrypt_paths = list()
         write_files = list()
         with open(file_path, 'rb') as f:
             try:
@@ -102,6 +115,7 @@ class OTP:
                         raise OTPError(f'分割的文件{f_write_path}已存在')
                     f_wb = open(f_write_path, 'wb')
                     write_files.append(f_wb)
+                    encrypt_paths.append(f_write_path)
                 for f_wb in write_files:
                     cls._write_header(f_wb, header)
                 rotated_hash = header.group_id
@@ -120,6 +134,7 @@ class OTP:
             finally:
                 for f_wb in write_files:
                     f_wb.close()
+        return encrypt_paths
 
     @classmethod
     def _write_header(
@@ -205,12 +220,19 @@ class OTP:
     def decrypt_file(
             cls,
             files: list[str],
-            output_folder: str,
+            output_folder: str = None,
     ):
+        """
+        提供加密的文件恢复出原文件.
+        :param files: 加密后的结果文件路径, 相同内容的文件可以重复出现.
+        :param output_folder: 输出原文件的目录位置
+        :return: 解密后的文件大小
+        """
         files = list(set(files))
-        if not os.path.exists(output_folder) or not os.path.isdir(output_folder):
+        if output_folder is not None and (not os.path.exists(output_folder) or not os.path.isdir(output_folder)):
             raise OTPError(f'输出目录{output_folder}不合法')
 
+        file_size = 0
 
         size_set = set()
         group_id_set = set()
@@ -271,10 +293,13 @@ class OTP:
                 header_files.append((header, file_path, fd, ))
             group_id = group_id_set.pop()
             rotated_hash = group_id
-            file_name = file_name_set.pop().decode('utf8')
-            full_path = os.path.join(output_folder, file_name)
-            if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
-                raise OTPError(f'文件{full_path}已存在, 不能保存解密文件')
+            if output_folder:
+                file_name = file_name_set.pop().decode('utf8')
+                full_path = os.path.join(output_folder, file_name)
+                if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
+                    raise OTPError(f'文件{full_path}已存在, 不能保存解密文件')
+            else:
+                full_path = 'nul' if os.name == 'nt' else '/dev/null'
             f_write = open(full_path, 'wb')
             for _ in range(segment_count_set.pop()):
                 signatures_set = set()
@@ -302,6 +327,7 @@ class OTP:
                     last_turn = raw_ciphertext
                 f_write.write(last_turn)
                 rotated_hash = cls._get_hash(rotated_hash + last_turn)
+                file_size += len(last_turn)
             if rotated_hash != file_hash_set.pop():
                 raise OTPError(f'最终还原的文件签名与预期不符')
         finally:
@@ -309,6 +335,7 @@ class OTP:
                 f.close()
             if f_write:
                 f_write.close()
+        return file_size
 
     @classmethod
     def _read_segment(
