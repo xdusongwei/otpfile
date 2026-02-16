@@ -57,6 +57,6 @@ from otpfile import OTP
 
 
 o = OTP()
-files = o.encrypt_file('/path/to/secret.data', '/path/to/write/output/folder')
+files: list[str] = o.encrypt_file('/path/to/secret.data', '/path/to/write/output/folder')
 o.decrypt_file(files, '/path/to/write/recover/folder')
 ```

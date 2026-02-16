@@ -72,7 +72,7 @@ class OTP:
             raise OTPError(f'nonce_size超过限制')
         file_name = os.path.basename(file_path)
         file_name_bytes = file_name.encode('utf8')
-        if len(file_name_bytes)  < 1 or len(file_name_bytes) > 1024:
+        if len(file_name_bytes) < 1 or len(file_name_bytes) > 1024:
             raise OTPError(f'被加密文件名长度超过限制')
         resp = cls._encrypt(
             file_path=file_path,
@@ -165,7 +165,6 @@ class OTP:
             segment.signature,
         )
         f_wb.write(struct.pack(fmt, *seq))
-
 
     @classmethod
     def _build_segment(
